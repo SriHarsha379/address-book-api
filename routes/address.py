@@ -39,7 +39,7 @@ def update_address(address_id: int, payload: AddressUpdate, db: Session = Depend
     return crud.update_address(db, address, payload)
 
 
-@router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_address(address_id: int, db: Session = Depends(get_db)) -> None:
     address = crud.get_address(db, address_id)
     if not address:

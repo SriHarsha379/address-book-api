@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Address Book</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #fff;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    header svg { flex-shrink: 0; }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: .3px; }
+    header span { font-size: .85rem; opacity: .8; margin-left: auto; }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Panels ──────────────────────────────────────────── */
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.1);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: .75rem 1rem;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+      font-size: .9rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    /* ── Map ─────────────────────────────────────────────── */
+    #map { width: 100%; height: 480px; }
+
+    /* ── Forms ───────────────────────────────────────────── */
+    .form-section { padding: 1rem; border-bottom: 1px solid #e2e8f0; }
+    .form-section:last-child { border-bottom: none; }
+    .form-section h3 {
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #64748b;
+      margin-bottom: .65rem;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: .45rem .65rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: .85rem;
+      transition: border .15s;
+      background: #fafafa;
+    }
+    input:focus { outline: none; border-color: #2563eb; background: #fff; }
+    input::placeholder { color: #94a3b8; }
+    label { font-size: .78rem; color: #475569; display: block; margin-bottom: .2rem; }
+    .field { margin-bottom: .5rem; }
+    .btn {
+      padding: .45rem .9rem;
+      border: none;
+      border-radius: 7px;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary  { background: #2563eb; color: #fff; }
+    .btn-success  { background: #16a34a; color: #fff; }
+    .btn-warning  { background: #d97706; color: #fff; }
+    .btn-danger   { background: #dc2626; color: #fff; }
+    .btn-ghost    { background: #e2e8f0; color: #374151; }
+    .btn:hover    { opacity: .88; }
+    .btn-row { display: flex; gap: .5rem; margin-top: .55rem; flex-wrap: wrap; }
+    .hint { font-size: .72rem; color: #94a3b8; margin-top: .3rem; }
+
+    /* ── Address list ────────────────────────────────────── */
+    #address-list { padding: .5rem; max-height: 340px; overflow-y: auto; }
+    .address-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: .6rem .8rem;
+      margin-bottom: .45rem;
+      display: flex;
+      align-items: flex-start;
+      gap: .6rem;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .address-card:hover { border-color: #93c5fd; box-shadow: 0 2px 8px rgba(37,99,235,.08); }
+    .address-card.highlight { border-color: #f59e0b; background: #fffbeb; }
+    .card-icon {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #dbeafe;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+    .card-body { flex: 1; min-width: 0; }
+    .card-name { font-weight: 600; font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-coords { font-size: .75rem; color: #64748b; margin-top: .1rem; }
+    .card-id { font-size: .7rem; color: #94a3b8; }
+    .card-actions { display: flex; gap: .35rem; flex-shrink: 0; align-items: center; }
+    .icon-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: .25rem;
+      border-radius: 5px;
+      font-size: 1rem;
+      transition: background .15s;
+    }
+    .icon-btn:hover { background: #e2e8f0; }
+
+    /* ── Edit modal ──────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.2);
+      transform: scale(.95); transition: transform .2s;
+    }
+    .modal-overlay.open .modal { transform: scale(1); }
+    .modal h2 { font-size: 1rem; margin-bottom: 1rem; }
+    .modal .field { margin-bottom: .75rem; }
+    .modal .btn-row { justify-content: flex-end; }
+
+    /* ── Toast ───────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: #1e293b; color: #fff;
+      padding: .6rem 1rem; border-radius: 8px;
+      font-size: .82rem; z-index: 10000;
+      opacity: 0; transform: translateY(8px);
+      transition: all .25s; pointer-events: none;
+      max-width: 260px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.error { background: #dc2626; }
+    #toast.success { background: #16a34a; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty {
+      text-align: center; padding: 2rem 1rem;
+      color: #94a3b8; font-size: .85rem;
+    }
+
+    /* ── Status bar ──────────────────────────────────────── */
+    #status-bar {
+      background: #f1f5f9;
+      border-top: 1px solid #e2e8f0;
+      padding: .35rem .8rem;
+      font-size: .75rem;
+      color: #64748b;
+      display: flex; gap: 1rem;
+    }
+    #status-bar span { display: flex; align-items: center; gap: .3rem; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────── -->
+<header>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+    <circle cx="12" cy="9" r="2.5"/>
+  </svg>
+  <h1>Address Book</h1>
+  <span id="api-status">● checking…</span>
+</header>
+
+<!-- ── Main layout ──────────────────────────────────────── -->
+<div class="layout">
+
+  <!-- LEFT: controls + list -->
+  <div style="display:flex;flex-direction:column;gap:1rem;">
+
+    <!-- Add address -->
+    <div class="panel">
+      <div class="panel-header">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add New Address
+      </div>
+      <div class="form-section">
+        <div class="field">
+          <label>Name / Label</label>
+          <input id="add-name" type="text" placeholder="e.g. Home, Office…" />
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Latitude</label>
+            <input id="add-lat" type="number" step="any" placeholder="-90 to 90" />
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <input id="add-lon" type="number" step="any" placeholder="-180 to 180" />
+          </div>
+        </div>
+        <p class="hint">💡 You can also click the map to fill lat/lon automatically.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="addAddress()">Add Address</button>
+          <button class="btn btn-ghost" onclick="clearAddForm()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nearby search -->
+    <div class="panel">
+      <div class="panel-header">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Nearby Search
+      </div>
+      <div class="form-section">
+        <div class="form-row">
+          <div class="field">
+            <label>Center Lat</label>
+            <input id="near-lat" type="number" step="any" placeholder="-90 to 90" />
+          </div>
+          <div class="field">
+            <label>Center Lon</label>
+            <input id="near-lon" type="number" step="any" placeholder="-180 to 180" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Radius (km)</label>
+          <input id="near-dist" type="number" step="any" placeholder="e.g. 50" />
+        </div>
+        <p class="hint">💡 Right-click the map to set the search center.</p>
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="nearbySearch()">Search</button>
+          <button class="btn btn-ghost" onclick="clearNearby()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Address list -->
+    <div class="panel" style="flex:1;">
+      <div class="panel-header">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Saved Addresses
+        <span id="count-badge" style="margin-left:auto;background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:.1rem .55rem;font-size:.72rem;font-weight:700;">0</span>
+      </div>
+      <div id="address-list"><div class="empty">No addresses yet.</div></div>
+      <div id="status-bar">
+        <span>🗂 <span id="total-count">0</span> total</span>
+        <span>🔍 <span id="nearby-count" style="display:none"> — </span></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: map -->
+  <div class="panel">
+    <div class="panel-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Map View
+      <span style="margin-left:auto;font-size:.73rem;color:#94a3b8;font-weight:400;">Click = set coords &nbsp;|&nbsp; Right-click = set search center</span>
+    </div>
+    <div id="map"></div>
+  </div>
+
+</div>
+
+<!-- ── Edit modal ────────────────────────────────────────── -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h2>✏️ Edit Address</h2>
+    <input type="hidden" id="edit-id" />
+    <div class="field">
+      <label>Name / Label</label>
+      <input id="edit-name" type="text" placeholder="Name" />
+    </div>
+    <div class="field">
+      <label>Latitude</label>
+      <input id="edit-lat" type="number" step="any" />
+    </div>
+    <div class="field">
+      <label>Longitude</label>
+      <input id="edit-lon" type="number" step="any" />
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeEdit()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── Leaflet JS ─────────────────────────────────────────── -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* ── Config ─────────────────────────────────────────────── */
+const API = '';           // same origin; change to 'http://localhost:8000' if serving separately
+
+/* ── Map setup ──────────────────────────────────────────── */
+const map = L.map('map').setView([20.5937, 78.9629], 4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+const markers   = {};     // id -> L.marker
+let   nearCircle = null;  // nearby-search circle
+let   nearPin    = null;  // right-click pin
+
+/* ── Marker icons ───────────────────────────────────────── */
+const blueIcon = L.divIcon({
+  html: '<div style="width:14px;height:14px;background:#2563eb;border:2.5px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+  iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+});
+const goldIcon = L.divIcon({
+  html: '<div style="width:16px;height:16px;background:#f59e0b;border:2.5px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+  iconSize: [16, 16], iconAnchor: [8, 8], className: ''
+});
+const redPinIcon = L.divIcon({
+  html: '<div style="width:14px;height:14px;background:#dc2626;border:2.5px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+  iconSize: [14, 14], iconAnchor: [7, 7], className: ''
+});
+
+/* ── Map click → fill add-form coords ──────────────────── */
+map.on('click', (e) => {
+  document.getElementById('add-lat').value = e.latlng.lat.toFixed(6);
+  document.getElementById('add-lon').value = e.latlng.lng.toFixed(6);
+  toast('📍 Lat/Lon filled from map click', 'success');
+});
+
+/* Right-click → set nearby center */
+map.on('contextmenu', (e) => {
+  document.getElementById('near-lat').value = e.latlng.lat.toFixed(6);
+  document.getElementById('near-lon').value = e.latlng.lng.toFixed(6);
+  if (nearPin) nearPin.remove();
+  nearPin = L.marker(e.latlng, { icon: redPinIcon })
+    .addTo(map)
+    .bindPopup('Search center').openPopup();
+  toast('🎯 Search center set', 'success');
+});
+
+/* ── Toast helper ───────────────────────────────────────── */
+let _toastTimer = null;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.className = ''; }, 2800);
+}
+
+/* ── API helpers ────────────────────────────────────────── */
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/* ── Health check ───────────────────────────────────────── */
+async function checkHealth() {
+  const el = document.getElementById('api-status');
+  try {
+    const d = await apiFetch('/health');
+    el.textContent = d.status === 'ok' ? '● online' : '● degraded';
+    el.style.color = d.status === 'ok' ? '#86efac' : '#fde68a';
+  } catch {
+    el.textContent = '● offline';
+    el.style.color = '#fca5a5';
+  }
+}
+
+/* ── Load & render all addresses ────────────────────────── */
+let _allAddresses = [];
+let _nearbyIds    = new Set();
+
+async function loadAddresses() {
+  try {
+    _allAddresses = await apiFetch('/addresses');
+    renderList(_allAddresses, _nearbyIds);
+    syncMarkers(_allAddresses, _nearbyIds);
+    document.getElementById('total-count').textContent = _allAddresses.length;
+    document.getElementById('count-badge').textContent = _allAddresses.length;
+  } catch (e) {
+    toast('Failed to load addresses: ' + e.message, 'error');
+  }
+}
+
+function renderList(addresses, highlightIds) {
+  const el = document.getElementById('address-list');
+  if (!addresses.length) {
+    el.innerHTML = '<div class="empty">No addresses saved yet.<br>Add one using the form or click the map.</div>';
+    return;
+  }
+  el.innerHTML = addresses.map(a => {
+    const hi = highlightIds.has(a.id) ? 'highlight' : '';
+    const nameDisplay = a.name ? escHtml(a.name) : `<span style="color:#94a3b8">Unnamed</span>`;
+    return `
+      <div class="address-card ${hi}" id="card-${a.id}">
+        <div class="card-icon">${highlightIds.has(a.id) ? '⭐' : '📍'}</div>
+        <div class="card-body">
+          <div class="card-name">${nameDisplay}</div>
+          <div class="card-coords">Lat ${a.latitude.toFixed(5)}, Lon ${a.longitude.toFixed(5)}</div>
+          <div class="card-id">ID #${a.id}</div>
+        </div>
+        <div class="card-actions">
+          <button class="icon-btn" title="Fly to" onclick="flyTo(${a.id})">🗺</button>
+          <button class="icon-btn" title="Edit"   onclick="openEdit(${a.id})">✏️</button>
+          <button class="icon-btn" title="Delete" onclick="deleteAddress(${a.id})">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function syncMarkers(addresses, highlightIds) {
+  const ids = new Set(addresses.map(a => a.id));
+  // remove stale
+  for (const id in markers) {
+    if (!ids.has(+id)) { markers[id].remove(); delete markers[id]; }
+  }
+  // add / update
+  addresses.forEach(a => {
+    const icon = highlightIds.has(a.id) ? goldIcon : blueIcon;
+    if (markers[a.id]) {
+      markers[a.id].setLatLng([a.latitude, a.longitude]).setIcon(icon);
+    } else {
+      markers[a.id] = L.marker([a.latitude, a.longitude], { icon })
+        .addTo(map)
+        .bindPopup(`<b>${escHtml(a.name || 'Unnamed')}</b><br>Lat ${a.latitude.toFixed(5)}<br>Lon ${a.longitude.toFixed(5)}`);
+    }
+  });
+}
+
+/* ── Add address ────────────────────────────────────────── */
+async function addAddress() {
+  const name = document.getElementById('add-name').value.trim();
+  const lat  = parseFloat(document.getElementById('add-lat').value);
+  const lon  = parseFloat(document.getElementById('add-lon').value);
+  if (isNaN(lat) || isNaN(lon)) { toast('Please enter valid lat/lon', 'error'); return; }
+  try {
+    await apiFetch('/addresses', {
+      method: 'POST',
+      body: JSON.stringify({ name: name || null, latitude: lat, longitude: lon })
+    });
+    toast('Address added ✓', 'success');
+    clearAddForm();
+    _nearbyIds = new Set();
+    clearNearbyVisuals();
+    await loadAddresses();
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function clearAddForm() {
+  ['add-name','add-lat','add-lon'].forEach(id => document.getElementById(id).value = '');
+}
+
+/* ── Delete address ─────────────────────────────────────── */
+async function deleteAddress(id) {
+  if (!confirm('Delete this address?')) return;
+  try {
+    await apiFetch(`/addresses/${id}`, { method: 'DELETE' });
+    toast('Deleted ✓', 'success');
+    _nearbyIds.delete(id);
+    await loadAddresses();
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+/* ── Edit modal ─────────────────────────────────────────── */
+function openEdit(id) {
+  const a = _allAddresses.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('edit-id').value  = a.id;
+  document.getElementById('edit-name').value = a.name || '';
+  document.getElementById('edit-lat').value  = a.latitude;
+  document.getElementById('edit-lon').value  = a.longitude;
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeEdit() {
+  document.getElementById('edit-modal').classList.remove('open');
+}
+async function saveEdit() {
+  const id  = +document.getElementById('edit-id').value;
+  const name = document.getElementById('edit-name').value.trim();
+  const lat  = parseFloat(document.getElementById('edit-lat').value);
+  const lon  = parseFloat(document.getElementById('edit-lon').value);
+  if (isNaN(lat) || isNaN(lon)) { toast('Invalid lat/lon', 'error'); return; }
+  try {
+    await apiFetch(`/addresses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name: name || null, latitude: lat, longitude: lon })
+    });
+    toast('Updated ✓', 'success');
+    closeEdit();
+    await loadAddresses();
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+/* ── Nearby search ──────────────────────────────────────── */
+async function nearbySearch() {
+  const lat  = parseFloat(document.getElementById('near-lat').value);
+  const lon  = parseFloat(document.getElementById('near-lon').value);
+  const dist = parseFloat(document.getElementById('near-dist').value);
+  if (isNaN(lat) || isNaN(lon) || isNaN(dist) || dist <= 0) {
+    toast('Enter valid lat, lon and a positive radius', 'error'); return;
+  }
+  try {
+    const results = await apiFetch(`/addresses/nearby?lat=${lat}&lon=${lon}&distance=${dist}`);
+    _nearbyIds = new Set(results.map(a => a.id));
+    renderList(_allAddresses, _nearbyIds);
+    syncMarkers(_allAddresses, _nearbyIds);
+    // draw circle
+    if (nearCircle) nearCircle.remove();
+    nearCircle = L.circle([lat, lon], {
+      radius: dist * 1000,
+      color: '#f59e0b', weight: 2,
+      fillColor: '#fde68a', fillOpacity: .2
+    }).addTo(map);
+    map.fitBounds(nearCircle.getBounds());
+    const nbEl = document.getElementById('nearby-count');
+    nbEl.textContent = `${results.length} nearby`;
+    nbEl.style.display = '';
+    toast(`Found ${results.length} address(es) within ${dist} km`, 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function clearNearbyVisuals() {
+  if (nearCircle) { nearCircle.remove(); nearCircle = null; }
+  if (nearPin)    { nearPin.remove();    nearPin    = null; }
+  document.getElementById('nearby-count').style.display = 'none';
+}
+
+function clearNearby() {
+  clearNearbyVisuals();
+  ['near-lat','near-lon','near-dist'].forEach(id => document.getElementById(id).value = '');
+  _nearbyIds = new Set();
+  renderList(_allAddresses, _nearbyIds);
+  syncMarkers(_allAddresses, _nearbyIds);
+}
+
+/* ── Fly to address on map ──────────────────────────────── */
+function flyTo(id) {
+  const a = _allAddresses.find(x => x.id === id);
+  if (!a) return;
+  map.flyTo([a.latitude, a.longitude], 14, { animate: true, duration: 1 });
+  if (markers[id]) markers[id].openPopup();
+}
+
+/* ── Escape HTML helper ─────────────────────────────────── */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Close modal on overlay click ───────────────────────── */
+document.getElementById('edit-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeEdit();
+});
+
+/* ── Init ───────────────────────────────────────────────── */
+checkHealth();
+loadAddresses();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>
