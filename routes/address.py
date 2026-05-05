@@ -6,7 +6,6 @@ import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 import crud
