@@ -58,10 +58,10 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-- Frontend UI:  http://127.0.0.1:8000/
-- API base URL: http://127.0.0.1:8000/addresses
-- Swagger UI:   http://127.0.0.1:8000/docs
-- Health check: http://127.0.0.1:8000/health
+- Frontend UI:  http://127.0.0.1:8001/
+- API base URL: http://127.0.0.1:8001/addresses
+- Swagger UI:   http://127.0.0.1:8001/docs
+- Health check: http://127.0.0.1:8001/health
 
 ## API Endpoints
 
@@ -78,29 +78,29 @@ uvicorn main:app --reload
 
 ### Create an address
 ```bash
-curl -X POST http://127.0.0.1:8000/addresses \
+curl -X POST http://127.0.0.1:8001/addresses \
   -H "Content-Type: application/json" \
   -d '{"name":"Home","latitude":12.9716,"longitude":77.5946}'
 ```
 
 ### Get all addresses
 ```bash
-curl http://127.0.0.1:8000/addresses
+curl http://127.0.0.1:8001/addresses
 ```
 
 ### Update an address
 ```bash
-curl -X PUT http://127.0.0.1:8000/addresses/1 \
+curl -X PUT http://127.0.0.1:8001/addresses/1 \
   -H "Content-Type: application/json" \
   -d '{"name":"Office","latitude":12.9352,"longitude":77.6245}'
 ```
 
 ### Delete an address
 ```bash
-curl -X DELETE http://127.0.0.1:8000/addresses/1
+curl -X DELETE http://127.0.0.1:8001/addresses/1
 ```
 
 ### Nearby search (within 5 km)
 ```bash
-curl "http://127.0.0.1:8000/addresses/nearby?lat=12.9716&lon=77.5946&distance=5"
+curl "http://127.0.0.1:8001/addresses/nearby?lat=12.9716&lon=77.5946&distance=5"
 ```
